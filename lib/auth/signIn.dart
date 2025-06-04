@@ -58,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
         }),
       );
 
-      if (!mounted) return; // Cek mounted setelah await
+      if (!mounted) return;
 
       final responseData = jsonDecode(response.body);
       print("Login Response Status: ${response.statusCode}");
@@ -70,6 +70,16 @@ class _LoginPageState extends State<LoginPage> {
             responseData['data']?['username'] as String? ??
             responseData['user']?['username'] as String?;
 
+        dynamic rawUserId = responseData['id'] ??
+            responseData['data']?['id'] ??
+            responseData['data']?['user_id'] ??
+            responseData['user']?['user_id'];
+
+        String? userIdString;
+        if (rawUserId != null) {
+          userIdString = rawUserId.toString();
+        }
+
         if (token != null && token.isNotEmpty) {
           await _storage.write(key: 'authToken', value: token);
           print('Token berhasil disimpan: $token');
@@ -80,7 +90,12 @@ class _LoginPageState extends State<LoginPage> {
           } else {
             print('Username tidak ditemukan dalam respons login.');
           }
-
+          if (userIdString != null && userIdString.isNotEmpty) {
+            await _storage.write(key: 'user_id', value: userIdString);
+            print('User ID berhasil disimpan: $userIdString');
+          } else {
+            print('User ID tidak ditemukan dalam respons login.');
+          }
           _showSnackBar(responseData['message'] ?? 'Login berhasil!');
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/dashboard');

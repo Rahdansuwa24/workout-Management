@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+// Pastikan path ini benar sesuai struktur proyek Anda
 import 'package:flutter_uas/api/api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+// Asumsikan CreateWorkoutPage ada di file terpisah dan diimpor jika diperlukan untuk navigasi
+// import 'create_workout_page.dart'; // Jika menggunakan Navigator.push(MaterialPageRoute(...))
 
 const Color cardBackgroundColor = Color(0xFF2C2C2C);
 const Color chipBackgroundColor = Color(0xFFE0C083);
@@ -69,9 +73,10 @@ class DashboardWorkoutCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                (double.tryParse(duration) != null)
+                // Cek jika durasi adalah angka, tambahkan "Menit", jika tidak tampilkan apa adanya
+                (double.tryParse(duration) != null && duration.isNotEmpty)
                     ? '$duration Menit'
-                    : duration,
+                    : (duration.isEmpty ? 'N/A' : duration),
                 style: TextStyle(
                   color: secondaryTextColorOnCard,
                   fontSize: 12,
@@ -131,9 +136,29 @@ class _DashboardPageState extends State<DashboardPage> {
     _loadUserDataAndFetchData();
   }
 
+  Future<void> _refreshData() async {
+    print("Memulai _refreshData()...");
+    if (!mounted) {
+      print("_refreshData dipanggil tetapi widget tidak mounted.");
+      return;
+    }
+    setState(() {
+      _isLoadingRecommendations = true;
+      _isLoadingUserWorkouts = true;
+      _errorMessage = null; // Reset error message
+    });
+    await _loadUserDataAndFetchData();
+    print("_refreshData() selesai.");
+  }
+
   Future<void> _loadUserDataAndFetchData() async {
+    print("Memulai _loadUserDataAndFetchData()...");
     final token = await _getTokenAndProcessUsername();
-    if (!mounted) return;
+    if (!mounted) {
+      print(
+          "_loadUserDataAndFetchData dipanggil tetapi widget tidak mounted setelah _getTokenAndProcessUsername.");
+      return;
+    }
 
     if (token == null) {
       setState(() {
@@ -142,9 +167,12 @@ class _DashboardPageState extends State<DashboardPage> {
         _isLoadingRecommendations = false;
         _isLoadingUserWorkouts = false;
       });
+      print(
+          "Token null di _loadUserDataAndFetchData. Menghentikan fetch data.");
       return;
     }
-    _fetchDashboardWorkoutData(token);
+    await _fetchDashboardWorkoutData(token);
+    print("_loadUserDataAndFetchData() selesai.");
   }
 
   Future<String?> _getTokenAndProcessUsername() async {
@@ -171,11 +199,8 @@ class _DashboardPageState extends State<DashboardPage> {
         }
         print("Username dari storage: $storedUsername");
       } else {
-        if (mounted) {
-          setState(() {
-            _loggedInUserName = 'User';
-          });
-        }
+        print(
+            "Username tidak ada di storage, akan coba diambil dari API atau set default 'User'.");
       }
       return token;
     } catch (e) {
@@ -183,6 +208,7 @@ class _DashboardPageState extends State<DashboardPage> {
       if (mounted) {
         setState(() {
           _loggedInUserName = null;
+          _errorMessage = "Error membaca data sesi: $e";
         });
       }
       return null;
@@ -190,6 +216,14 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _fetchDashboardWorkoutData(String token) async {
+    print("Memulai _fetchDashboardWorkoutData dengan token...");
+    if (mounted) {
+      setState(() {
+        _errorMessage = null;
+      });
+    }
+
+    // Fetch recommendations
     await _fetchData(
       endpoint: '/reccomendation',
       token: token,
@@ -199,18 +233,23 @@ class _DashboardPageState extends State<DashboardPage> {
             _recommendationWorkouts = data;
             _isLoadingRecommendations = false;
           });
+          print("Rekomendasi berhasil dimuat: ${data.length} item.");
         }
       },
       onError: (message) {
         if (mounted) {
           setState(() {
-            _errorMessage = message;
+            _errorMessage = (_errorMessage == null || _errorMessage!.isEmpty)
+                ? "Rekomendasi: $message"
+                : "$_errorMessage\nRekomendasi: $message";
             _isLoadingRecommendations = false;
           });
+          print("Error memuat rekomendasi: $message");
         }
       },
     );
 
+    // Fetch user workouts
     await _fetchData(
       endpoint: '/',
       token: token,
@@ -219,6 +258,7 @@ class _DashboardPageState extends State<DashboardPage> {
           setState(() {
             _userWorkouts = data;
             _isLoadingUserWorkouts = false;
+
             final usernameFromResponse = fullResponse?['username'] as String?;
             if (usernameFromResponse != null &&
                 usernameFromResponse.isNotEmpty) {
@@ -228,22 +268,30 @@ class _DashboardPageState extends State<DashboardPage> {
                 _loggedInUserName = usernameFromResponse;
                 _storage.write(
                     key: 'loggedInUsername', value: usernameFromResponse);
+                print("Username diperbarui dari API: $usernameFromResponse");
               }
+            } else if (_loggedInUserName == null) {
+              _loggedInUserName = 'User';
+              print(
+                  "Username diatur ke default 'User' karena tidak ada dari API atau storage.");
             }
           });
+          print("User workouts berhasil dimuat: ${data.length} item.");
         }
       },
       onError: (message) {
         if (mounted) {
           setState(() {
             _errorMessage = (_errorMessage == null || _errorMessage!.isEmpty)
-                ? message
-                : "$_errorMessage\n$message";
+                ? "Workout List: $message"
+                : "$_errorMessage\nWorkout List: $message";
             _isLoadingUserWorkouts = false;
           });
+          print("Error memuat user workouts: $message");
         }
       },
     );
+    print("_fetchDashboardWorkoutData selesai.");
   }
 
   Future<void> _fetchData({
@@ -266,29 +314,51 @@ class _DashboardPageState extends State<DashboardPage> {
         },
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        print("Widget tidak mounted setelah http.get untuk $apiUrl.");
+        return;
+      }
 
       final responseData = jsonDecode(response.body);
       print(
-          "API Response for $endpoint (Status: ${response.statusCode}): $responseData");
+          "API Response for $basePath$endpoint (Status: ${response.statusCode}): $responseData");
 
       if (response.statusCode == 200) {
         if (responseData['status'] == true && responseData['data'] is List) {
           List<Map<String, String>> workouts =
               (responseData['data'] as List).map((item) {
-            // ** PERBAIKAN MAPPING FIELD **
+            if (item is Map) {
+              return {
+                // **Tambahkan 'id' untuk setiap item workout/rekomendasi**
+                'id': item['latihan_id']?.toString() ??
+                    item['id']?.toString() ??
+                    UniqueKey().toString(),
+                'exerciseName': item['nama_latihan']?.toString() ?? 'N/A',
+                'sets': item['set_latihan']?.toString() ?? '0',
+                'reps': item['repetisi_latihan']?.toString() ?? '0',
+                'duration': item['waktu']?.toString() ?? 'N/A',
+                // Sertakan field lain jika ada dan diperlukan
+                'bagian_yang_dilatih':
+                    item['bagian_yang_dilatih']?.toString() ?? '',
+                'hari_latihan': item['hari_latihan']?.toString() ?? '',
+              };
+            }
             return {
-              'exerciseName': item['nama_latihan']?.toString() ?? 'N/A',
-              'sets': item['set_latihan']?.toString() ?? '0',
-              'reps': item['repetisi_latihan']?.toString() ?? '0',
-              'duration': item['waktu']?.toString() ?? 'N/A',
+              'id': UniqueKey().toString(),
+              'exerciseName': 'Data Tidak Valid',
+              'sets': '0',
+              'reps': '0',
+              'duration': 'N/A'
             };
           }).toList();
           onSuccess(workouts, responseData);
         } else {
           onError(responseData['message']?.toString() ??
-              'Format data tidak sesuai atau status false.');
+              'Format data tidak sesuai atau status dari server adalah false.');
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        onError(
+            'Sesi tidak valid atau tidak diizinkan (Status: ${response.statusCode}). Silakan login kembali.');
       } else {
         onError(
             'Error ${response.statusCode}: ${responseData['message']?.toString() ?? 'Gagal mengambil data.'}');
@@ -296,27 +366,34 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (e) {
       print('Error fetching $apiUrl: $e');
       onError(
-          'Tidak dapat terhubung ke server untuk $endpoint. Periksa URL dan koneksi.');
+          'Tidak dapat terhubung ke server untuk $endpoint. Periksa URL API dan koneksi internet Anda.');
     }
   }
 
   Future<void> _handleLogout() async {
-    if (!mounted) return;
+    if (!mounted) {
+      print("Logout: Widget tidak mounted di awal _handleLogout.");
+      return;
+    }
     setState(() {
       _isLoggingOut = true;
     });
 
-    final String logoutApiEndpoint = '/auth/logout';
+    final String logoutApiEndpoint = '/logout';
     final String logoutUrl = '${ApiConfig.baseUrl}$logoutApiEndpoint';
+    print("Attempting backend logout from: $logoutUrl with GET method");
 
     try {
       final response = await http.get(
         Uri.parse(logoutUrl),
         headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
+          // 'Authorization': 'Bearer ${await _storage.read(key: 'authToken')}',
         },
       );
-      if (!mounted) return;
+      if (!mounted) {
+        print("Logout: Widget tidak mounted setelah panggilan API logout.");
+        return;
+      }
 
       if (response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
@@ -340,19 +417,19 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       await _storage.delete(key: 'authToken');
       await _storage.delete(key: 'loggedInUsername');
+      await _storage.delete(key: 'user_id');
       print(
-          'Local token and username deleted successfully from secure storage.');
+          'Local token, username, and user_id deleted successfully from secure storage.');
     } catch (e) {
-      print('Error deleting local token/username from secure storage: $e');
+      print('Error deleting local data from secure storage: $e');
     }
 
     if (mounted) {
-      setState(() {
-        _isLoggingOut = false;
-        _loggedInUserName = null;
-      });
+      print("Logout: Widget mounted. Mencoba navigasi ke /login...");
       Navigator.of(context)
-          .pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
+          .pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+    } else {
+      print("Logout: Widget tidak mounted sebelum mencoba navigasi ke /login.");
     }
   }
 
@@ -360,84 +437,109 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            if (_errorMessage != null && _errorMessage!.isNotEmpty)
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        color: chipBackgroundColor,
+        backgroundColor: cardBackgroundColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              if (_errorMessage != null && _errorMessage!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text(_errorMessage!,
+                      style: const TextStyle(color: Colors.red, fontSize: 16)),
+                ),
+              const Padding(
+                padding:
+                    EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 10),
+                child: Text(
+                  'Recommendation',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18),
+                ),
+              ),
+              _isLoadingRecommendations
+                  ? const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(
+                              color: chipBackgroundColor)))
+                  : _recommendationWorkouts.isEmpty &&
+                          (_errorMessage == null ||
+                              !_errorMessage!.contains("Rekomendasi:"))
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          child: Text('Tidak ada rekomendasi workout saat ini.',
+                              style: TextStyle(color: Colors.white70)),
+                        )
+                      : _workoutCarousel(
+                          // Panggil _workoutCarousel untuk rekomendasi
+                          _recommendationWorkouts,
+                          onItemTap: (itemData) {
+                            print("Recommendation card tapped: $itemData");
+                            Navigator.pushNamed(
+                                context, '/detailrecommendation',
+                                arguments: itemData);
+                          },
+                        ),
               Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(_errorMessage!,
-                    style: const TextStyle(color: Colors.red, fontSize: 16)),
-              ),
-            const Padding(
-              padding:
-                  EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 10),
-              child: Text(
-                'Recommendation',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18),
-              ),
-            ),
-            _isLoadingRecommendations
-                ? const Center(
-                    child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: CircularProgressIndicator(
-                            color: chipBackgroundColor)))
-                : _recommendationWorkouts.isEmpty &&
-                        (_errorMessage == null || _errorMessage!.isEmpty)
-                    ? const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: Text('Tidak ada rekomendasi workout saat ini.',
-                            style: TextStyle(color: Colors.white70)),
-                      )
-                    : _workoutCarousel(_recommendationWorkouts),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Workout List',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, '/listworkout');
-                    },
-                    child: const Text(
-                      'See All',
-                      style: TextStyle(color: chipBackgroundColor),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Workout List',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18),
                     ),
-                  ),
-                ],
+                    GestureDetector(
+                      onTap: () async {
+                        final result =
+                            await Navigator.pushNamed(context, '/listworkout');
+                        if (result == true && mounted) {
+                          _refreshData();
+                        } else if (mounted) {
+                          // _refreshData(); // Opsi: refresh juga jika tidak ada hasil true
+                        }
+                      },
+                      child: const Text(
+                        'See All',
+                        style: TextStyle(color: chipBackgroundColor),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            _isLoadingUserWorkouts
-                ? const Center(
-                    child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: CircularProgressIndicator(
-                            color: chipBackgroundColor)))
-                : _userWorkouts.isEmpty &&
-                        (_errorMessage == null || _errorMessage!.isEmpty)
-                    ? const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: Text('Anda belum memiliki daftar workout.',
-                            style: TextStyle(color: Colors.white70)),
-                      )
-                    : _workoutCarousel(_userWorkouts),
-            const SizedBox(height: 20),
-          ],
+              _isLoadingUserWorkouts
+                  ? const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(
+                              color: chipBackgroundColor)))
+                  : _userWorkouts.isEmpty &&
+                          (_errorMessage == null ||
+                              !_errorMessage!.contains("Workout List:"))
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          child: Text('Anda belum memiliki daftar workout.',
+                              style: TextStyle(color: Colors.white70)),
+                        )
+                      : _workoutCarousel(
+                          _userWorkouts), // Panggil _workoutCarousel untuk user workouts (tanpa onTap spesifik ini)
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -539,11 +641,32 @@ class _DashboardPageState extends State<DashboardPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _actionButton(Icons.fitness_center, 'Add Workout', context, () {
-                print('Add Workout Tapped');
+              _actionButton(Icons.fitness_center, 'Add Workout', context,
+                  () async {
+                print(
+                    "Tombol 'Add Workout' ditekan. Membuka halaman /create...");
+                final result = await Navigator.pushNamed(context, '/create');
+                print(
+                    "Kembali dari halaman /create. Hasil: $result, Tipe Hasil: ${result.runtimeType}");
+
+                if (!mounted) {
+                  print(
+                      "DashboardPage tidak lagi mounted setelah kembali dari /create.");
+                  return;
+                }
+
+                if (result == true) {
+                  print("Hasil adalah true. Memanggil _refreshData()...");
+                  await _refreshData();
+                  print(
+                      "_refreshData() selesai dipanggil setelah 'Add Workout'.");
+                } else {
+                  print(
+                      "Hasil dari /create bukan true (nilai: $result). Tidak memanggil _refreshData() secara otomatis.");
+                }
               }),
               _actionButton(Icons.calendar_today, 'Schedule', context, () {
-                print('Schedule Tapped');
+                Navigator.pushNamed(context, '/schedule');
               }),
             ],
           ),
@@ -570,8 +693,11 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _workoutCarousel(List<Map<String, String>> data) {
+  // Modifikasi _workoutCarousel untuk menerima onItemTap callback
+  Widget _workoutCarousel(List<Map<String, String>> data,
+      {Function(Map<String, String> itemData)? onItemTap}) {
     if (data.isEmpty) {
+      // Tidak menampilkan apa-apa jika data kosong, pesan akan ditangani oleh build utama
       return const SizedBox.shrink();
     }
     return SizedBox(
@@ -582,12 +708,20 @@ class _DashboardPageState extends State<DashboardPage> {
         itemCount: data.length,
         itemBuilder: (context, index) {
           final item = data[index];
-          return DashboardWorkoutCard(
+          Widget card = DashboardWorkoutCard(
             exerciseName: item['exerciseName']!,
             sets: item['sets']!,
             reps: item['reps']!,
             duration: item['duration']!,
           );
+
+          if (onItemTap != null) {
+            return GestureDetector(
+              onTap: () => onItemTap(item),
+              child: card,
+            );
+          }
+          return card;
         },
       ),
     );

@@ -1,31 +1,394 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_uas/api/api.dart'; // Pastikan path ini benar
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-class SchedulePage extends StatelessWidget {
+// Enum untuk level kesulitan
+enum WorkoutLevel { pemula, amatir, mahir }
+
+class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key});
 
-  // Contoh data jadwal
-  final List<Map<String, String>> scheduleData = const [
-    {'day': 'MON', 'workouts': 'Dips, Push Ups, Pull Ups'},
-    {'day': 'TUE', 'workouts': 'Squats, Lunges, Calf Raises'},
-    {'day': 'WED', 'workouts': 'Deadlifts, Rows, Bicep Curls'},
-    {'day': 'THU', 'workouts': 'Overhead Press, Lateral Raises'},
-    {'day': 'FRI', 'workouts': 'Full Body Circuit Training'},
-  ];
+  @override
+  State<SchedulePage> createState() => _SchedulePageState();
+}
+
+class _SchedulePageState extends State<SchedulePage> {
+  List<Map<String, dynamic>> _groupedScheduleData = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  final _storage = const FlutterSecureStorage();
 
   // Skema Warna
   static const Color screenBackgroundColor = Color(0xFF121212);
   static const Color appBarTextColor = Colors.white;
   static const Color bannerTextColor = Colors.white;
-  static const Color dayChipBackgroundColor = Color(0xFFE0C083); // Kuning-beige
-  static const Color dayChipTextColor = Color(0xFF1F1F1F); // Teks gelap di chip
-  static const Color scheduleItemBackgroundColor =
-      Color(0xFF1E1E1E); // Latar item jadwal
-  static const Color workoutNameTextColor =
-      Color(0xFFE0E0E0); // Teks nama workout
-  static const Color actionButtonBackgroundColor =
-      Color(0xFF383838); // Latar tombol aksi
-  static const Color actionButtonTextColor =
-      Color(0xFFE0E0E0); // Teks tombol aksi
+  static const Color dayChipBackgroundColor = Color(0xFFE0C083);
+  static const Color dayChipTextColor = Color(0xFF1F1F1F);
+  static const Color scheduleItemBackgroundColor = Color(0xFF1E1E1E);
+  static const Color workoutNameTextColor = Color(0xFFE0E0E0);
+  static const Color actionButtonBackgroundColor = Color(0xFF383838);
+  static const Color actionButtonTextColor = Color(0xFFE0E0E0);
+  static const Color popupBackgroundColor = Color(0xFF2C2C2E);
+  static const Color popupTitleColor = Colors.white;
+  static const Color popupContentColor = Color(0xFFE0E0E0);
+  static const Color popupDetailLabelColor = Color(0xFFB0B0B0);
+  static const Color popupOptionTextColor =
+      Color(0xFFE0C083); // Warna untuk teks opsi
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAndProcessScheduleData();
+  }
+
+  String _getDayAbbreviation(String? dayName) {
+    if (dayName == null) return 'N/A';
+    switch (dayName.toLowerCase()) {
+      case 'senin':
+        return 'MON';
+      case 'selasa':
+        return 'TUE';
+      case 'rabu':
+        return 'WED';
+      case 'kamis':
+        return 'THU';
+      case 'jumat':
+        return 'FRI';
+      case 'sabtu':
+        return 'SAT';
+      case 'minggu':
+        return 'SUN';
+      default:
+        if (dayName.length >= 3) {
+          return dayName.substring(0, 3).toUpperCase();
+        }
+        return dayName.toUpperCase();
+    }
+  }
+
+  Future<void> _fetchAndProcessScheduleData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final token = await _storage.read(key: 'authToken');
+      if (token == null) {
+        throw Exception("Token tidak ditemukan. Silakan login kembali.");
+      }
+
+      final String scheduleUrl = '${ApiConfig.baseUrl}/workout/popup';
+      print("Fetching schedule data from: $scheduleUrl");
+
+      final response = await http.get(
+        Uri.parse(scheduleUrl),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print("SchedulePage - Response status: ${response.statusCode}");
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        print("SchedulePage - Decoded data from /popup: $responseData");
+
+        if (responseData['status'] == true && responseData['data'] is List) {
+          final List<dynamic> allWorkoutsFromServer = responseData['data'];
+
+          Map<String, List<Map<String, dynamic>>> tempGrouped = {};
+          for (var workoutItem in allWorkoutsFromServer) {
+            if (workoutItem is Map<String, dynamic>) {
+              String day =
+                  workoutItem['hari_latihan']?.toString() ?? 'Tidak Diketahui';
+              if (!tempGrouped.containsKey(day)) {
+                tempGrouped[day] = [];
+              }
+              tempGrouped[day]!.add({
+                'latihan_id': workoutItem['latihan_id']?.toString(),
+                'nama_latihan':
+                    workoutItem['nama_latihan']?.toString() ?? 'N/A',
+                'bagian_yang_dilatih':
+                    workoutItem['bagian_yang_dilatih']?.toString() ?? '-',
+                'set_latihan': workoutItem['set_latihan']?.toString() ?? '0',
+                'repetisi_latihan':
+                    workoutItem['repetisi_latihan']?.toString() ?? '0',
+                'waktu': workoutItem['waktu']?.toString() ?? '0',
+              });
+            }
+          }
+
+          List<String> dayOrder = [
+            'senin',
+            'selasa',
+            'rabu',
+            'kamis',
+            'jumat',
+            'sabtu',
+            'minggu'
+          ];
+          List<Map<String, dynamic>> processedSchedule = [];
+
+          for (String dayKey in dayOrder) {
+            if (tempGrouped.containsKey(dayKey)) {
+              List<Map<String, dynamic>> workoutsForDay = tempGrouped[dayKey]!;
+              processedSchedule.add({
+                'day_abbreviation': _getDayAbbreviation(dayKey),
+                'original_day_name': dayKey,
+                'workouts_summary_string':
+                    workoutsForDay.map((w) => w['nama_latihan']).join(', '),
+                'detailed_workouts_for_this_day': workoutsForDay,
+              });
+            }
+          }
+          tempGrouped.forEach((dayKey, workoutsForDay) {
+            if (!dayOrder.contains(dayKey)) {
+              processedSchedule.add({
+                'day_abbreviation': _getDayAbbreviation(dayKey),
+                'original_day_name': dayKey,
+                'workouts_summary_string':
+                    workoutsForDay.map((w) => w['nama_latihan']).join(', '),
+                'detailed_workouts_for_this_day': workoutsForDay,
+              });
+            }
+          });
+
+          setState(() {
+            _groupedScheduleData = processedSchedule;
+            _isLoading = false;
+          });
+        } else {
+          throw Exception(
+              "Format data jadwal tidak sesuai atau status false. Pesan: ${responseData['message']}");
+        }
+      } else {
+        final errorBody =
+            response.body.isNotEmpty ? jsonDecode(response.body) : null;
+        throw Exception(
+            'Gagal mengambil data jadwal. Status: ${response.statusCode}. Pesan: ${errorBody?['message'] ?? response.body}');
+      }
+    } catch (e) {
+      print("Error fetching schedule data: $e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
+      }
+    }
+  }
+
+  void _showScheduleDetailPopup(BuildContext context, String dayFullName,
+      List<Map<String, dynamic>> detailedWorkouts) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: popupBackgroundColor,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          title: Text(
+            'Detail Jadwal - ${dayFullName.isNotEmpty ? dayFullName[0].toUpperCase() + dayFullName.substring(1) : 'Hari Ini'}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: popupTitleColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 18),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: detailedWorkouts.isEmpty
+                ? const Text(
+                    'Tidak ada latihan terjadwal untuk hari ini.',
+                    style: TextStyle(color: popupContentColor, fontSize: 15),
+                    textAlign: TextAlign.center,
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: detailedWorkouts.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final workout = detailedWorkouts[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              workout['nama_latihan'] ??
+                                  'Nama Latihan Tidak Ada',
+                              style: const TextStyle(
+                                  color: dayChipBackgroundColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16),
+                            ),
+                            const SizedBox(height: 4),
+                            if (workout['bagian_yang_dilatih'] != null &&
+                                workout['bagian_yang_dilatih'] != '-')
+                              Padding(
+                                padding: const EdgeInsets.only(left: 10.0),
+                                child: Text(
+                                    'Bagian: ${workout['bagian_yang_dilatih']}',
+                                    style: const TextStyle(
+                                        color: popupDetailLabelColor,
+                                        fontSize: 14)),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 10.0),
+                              child: Text(
+                                  'Set: ${workout['set_latihan'] ?? '-'}',
+                                  style: const TextStyle(
+                                      color: popupDetailLabelColor,
+                                      fontSize: 14)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 10.0),
+                              child: Text(
+                                  'Repetisi: ${workout['repetisi_latihan'] ?? '-'}',
+                                  style: const TextStyle(
+                                      color: popupDetailLabelColor,
+                                      fontSize: 14)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 10.0),
+                              child: Text(
+                                  'Waktu: ${workout['waktu'] ?? '-'} menit',
+                                  style: const TextStyle(
+                                      color: popupDetailLabelColor,
+                                      fontSize: 14)),
+                            ),
+                            if (index < detailedWorkouts.length - 1)
+                              Divider(
+                                  color: Colors.grey[800],
+                                  height: 16,
+                                  thickness: 0.5),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: <Widget>[
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: dayChipBackgroundColor,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+              ),
+              child: const Text('Tutup',
+                  style: TextStyle(
+                      color: dayChipTextColor, fontWeight: FontWeight.bold)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showStartWorkoutOptionsPopup(BuildContext context, String dayFullName,
+      List<Map<String, dynamic>> detailedWorkouts) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: popupBackgroundColor,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          title: Text(
+            'Pilih Level Kesulitan\nUntuk $dayFullName',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: popupTitleColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                height: 1.3),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min, // Agar dialog tidak terlalu besar
+            children: WorkoutLevel.values.map((level) {
+              String levelName = "";
+              int restTime = 0;
+              switch (level) {
+                case WorkoutLevel.pemula:
+                  levelName = "Pemula";
+                  restTime = 45;
+                  break;
+                case WorkoutLevel.amatir:
+                  levelName = "Amatir";
+                  restTime = 25;
+                  break;
+                case WorkoutLevel.mahir:
+                  levelName = "Mahir";
+                  restTime = 15;
+                  break;
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: dayChipBackgroundColor,
+                    foregroundColor: dayChipTextColor,
+                    minimumSize:
+                        const Size(double.infinity, 45), // Tombol full width
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0)),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Tutup dialog opsi
+                    print(
+                        'Level dipilih: $levelName, Waktu Istirahat: $restTime detik');
+                    Navigator.pushNamed(
+                        context, '/countdown', // Nama rute untuk CountdownPage
+                        arguments: {
+                          'levelName': levelName,
+                          'restTime': restTime,
+                          'dayName': dayFullName,
+                          'workoutsForDay': detailedWorkouts,
+                          // Anda mungkin ingin mengirim hanya workout pertama atau semua workout
+                          // Tergantung bagaimana CountdownPage akan mengelolanya
+                        });
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(
+                          'Memulai workout $dayFullName (Level: $levelName, Istirahat: $restTime detik) - Simulasi'),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ));
+                  },
+                  child: Text(levelName,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              );
+            }).toList(),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,14 +415,73 @@ class SchedulePage extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildBannerSection(), // Bagian banner yang dikoreksi
-            _buildScheduleList(),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: dayChipBackgroundColor))
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 50),
+                      const SizedBox(height: 10),
+                      Text(_errorMessage!,
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 16),
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: dayChipBackgroundColor),
+                        onPressed: _fetchAndProcessScheduleData,
+                        icon:
+                            const Icon(Icons.refresh, color: dayChipTextColor),
+                        label: const Text('Coba Lagi',
+                            style: TextStyle(color: dayChipTextColor)),
+                      )
+                    ],
+                  ),
+                ))
+              : _groupedScheduleData.isEmpty
+                  ? Center(
+                      child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            size: 80, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text('Jadwal workout Anda masih kosong.',
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 18)),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Tambahkan latihan ke jadwal Anda.',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: dayChipBackgroundColor),
+                          onPressed: _fetchAndProcessScheduleData,
+                          icon: const Icon(Icons.refresh,
+                              color: dayChipTextColor),
+                          label: const Text('Refresh Jadwal',
+                              style: TextStyle(color: dayChipTextColor)),
+                        )
+                      ],
+                    ))
+                  : SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildBannerSection(),
+                          _buildScheduleList(),
+                        ],
+                      ),
+                    ),
     );
   }
 
@@ -68,30 +490,25 @@ class SchedulePage extends StatelessWidget {
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        // Menggunakan decoration untuk gambar
         image: DecorationImage(
-          // GANTI DENGAN PATH GAMBAR ANDA YANG SEBENARNYA
-          // Contoh: 'assets/images/my_banner.jpg'
-          // Pastikan gambar sudah ada di folder assets dan didaftarkan di pubspec.yaml
-          image: const AssetImage(
-              'assets/photo-schedule.png'), // Gunakan path aset yang valid
-          fit: BoxFit.cover,
-        ),
+            image: const AssetImage('assets/photo-schedule.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+                Colors.black.withOpacity(0.3), BlendMode.darken)),
       ),
-      // Properti 'color' telah DIHAPUS dari sini karena 'decoration' (dengan image) sudah digunakan.
       child: Stack(
         children: [
-          // Container overlay gelap ini membantu agar teks lebih terbaca di atas gambar.
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.black.withOpacity(0.65), // Lebih gelap di bawah
-                  Colors.black.withOpacity(0.15) // Lebih transparan di atas
-                ],
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-              ),
+                  colors: [
+                    Colors.black.withOpacity(0.65),
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.35)
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.5, 1.0]),
             ),
           ),
           Padding(
@@ -139,14 +556,20 @@ class SchedulePage extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       child: Column(
-        children: scheduleData.map((item) {
-          return _buildScheduleItem(item['day']!, item['workouts']!);
+        children: _groupedScheduleData.map((item) {
+          return _buildScheduleItem(
+              item['day_abbreviation']!,
+              item['workouts_summary_string']!,
+              item['original_day_name']!,
+              item['detailed_workouts_for_this_day']
+                  as List<Map<String, dynamic>>);
         }).toList(),
       ),
     );
   }
 
-  Widget _buildScheduleItem(String dayAbbreviation, String workoutNames) {
+  Widget _buildScheduleItem(String dayAbbreviation, String workoutSummary,
+      String dayFullName, List<Map<String, dynamic>> detailedWorkouts) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Container(
@@ -164,19 +587,28 @@ class SchedulePage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    workoutNames,
+                    workoutSummary,
                     style: const TextStyle(
                       color: workoutNameTextColor,
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 10.0),
                   Row(
                     children: [
-                      _buildActionButton('Detail'),
+                      _buildActionButton('Detail', () {
+                        _showScheduleDetailPopup(
+                            context, dayFullName, detailedWorkouts);
+                      }),
                       const SizedBox(width: 8.0),
-                      _buildActionButton('Start'),
+                      _buildActionButton('Start', () {
+                        // Panggil popup opsi start workout
+                        _showStartWorkoutOptionsPopup(
+                            context, dayFullName, detailedWorkouts);
+                      }),
                     ],
                   ),
                 ],
@@ -209,11 +641,9 @@ class SchedulePage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(String text) {
+  Widget _buildActionButton(String text, VoidCallback onPressed) {
     return ElevatedButton(
-      onPressed: () {
-        print('$text button pressed');
-      },
+      onPressed: onPressed,
       style: ElevatedButton.styleFrom(
         backgroundColor: actionButtonBackgroundColor,
         padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
@@ -234,14 +664,3 @@ class SchedulePage extends StatelessWidget {
     );
   }
 }
-
-// Untuk menjalankan contoh ini secara terpisah (opsional):
-// void main() {
-//   runApp(
-//     MaterialApp(
-//       debugShowCheckedModeBanner: false,
-//       home: SchedulePage(),
-//       // theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: SchedulePage.screenBackgroundColor),
-//     ),
-//   );
-// }
