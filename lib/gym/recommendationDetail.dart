@@ -3,7 +3,7 @@ import 'package:flutter_uas/gym/createPaget.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_uas/api/api.dart'; // Pastikan path ini benar
+import 'package:flutter_uas/api/api.dart';
 
 class RecommendationDetail extends StatefulWidget {
   final Map<String, dynamic>? initialRecommendationData;
@@ -24,8 +24,7 @@ class _RecommendationDetailState extends State<RecommendationDetail> {
   String? _recommendationId;
 
   List<Map<String, dynamic>> _fetchedComments = [];
-  bool _isLoadingComments =
-      true; // Awalnya true sampai komentar selesai di-load
+  bool _isLoadingComments = true;
   String? _commentsErrorMessage;
   bool _isPostingComment = false;
 
@@ -104,7 +103,7 @@ class _RecommendationDetailState extends State<RecommendationDetail> {
                 true);
             _handleFetchError(
                 "Tidak dapat memuat komentar karena ID Rekomendasi tidak valid.",
-                false); // Juga set error untuk komentar
+                false);
           }
         }
       } else {
@@ -113,7 +112,7 @@ class _RecommendationDetailState extends State<RecommendationDetail> {
             true);
         _handleFetchError(
             "Tidak dapat memuat komentar karena tidak ada data rekomendasi.",
-            false); // Juga set error untuk komentar
+            false);
       }
       _isInitialized = true;
     }
@@ -134,14 +133,10 @@ class _RecommendationDetailState extends State<RecommendationDetail> {
   }
 
   Future<void> _fetchRecommendationDetailsAndComments(String id) async {
-    // Fetch details dulu
     await _fetchRecommendationDetails(id);
-    // Hanya fetch komentar jika detail berhasil dimuat dan ID rekomendasi valid
     if (mounted && _detailedData != null && _recommendationId != null) {
       await _fetchComments(_recommendationId!);
     } else if (mounted && _recommendationId != null) {
-      // Jika detail gagal tapi ID ada, tetap coba fetch komentar (atau set error)
-      // Tergantung apakah komentar bisa ada tanpa detail workout yang valid
       _handleFetchError(
           "Detail workout gagal dimuat, komentar mungkin tidak relevan atau tidak dapat dimuat.",
           false);
@@ -228,7 +223,7 @@ class _RecommendationDetailState extends State<RecommendationDetail> {
     setState(() {
       _isLoadingComments = true;
       _commentsErrorMessage = null;
-      _fetchedComments.clear(); // Kosongkan komentar lama sebelum fetch baru
+      _fetchedComments.clear();
     });
     print(
         "RecommendationDetail - Memulai _fetchComments untuk latihan_id: $latihanId");
@@ -238,7 +233,6 @@ class _RecommendationDetailState extends State<RecommendationDetail> {
       if (token == null)
         throw Exception("Token tidak ditemukan untuk mengambil komentar.");
 
-      // **ASUMSI ENDPOINT BARU**: Anda perlu endpoint ini di backend: GET /api/komentar/latihan/:latihan_id
       final String fetchUrl =
           '${ApiConfig.baseUrl}/komentar/latihan/$latihanId';
       print("RecommendationDetail - Fetching comments from: $fetchUrl");
@@ -253,8 +247,6 @@ class _RecommendationDetailState extends State<RecommendationDetail> {
 
       print(
           "RecommendationDetail - Respons fetch comments: Status: ${response.statusCode}");
-      // print("RecommendationDetail - Respons fetch comments Body: ${response.body}");
-
       if (!mounted) return;
 
       if (response.statusCode == 200) {
@@ -397,7 +389,7 @@ class _RecommendationDetailState extends State<RecommendationDetail> {
       return;
     }
 
-    setState(() {/* Bisa tambahkan state loading untuk tombol Add */});
+    setState(() {});
 
     try {
       final token = await _storage.read(key: 'authToken');

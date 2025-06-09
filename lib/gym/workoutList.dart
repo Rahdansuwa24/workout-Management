@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_uas/api/api.dart'; // Pastikan ini path-nya benar sesuai projectmu
+import 'package:flutter_uas/api/api.dart';
 
 class WorkoutList extends StatefulWidget {
   const WorkoutList({super.key});
@@ -12,10 +12,8 @@ class WorkoutList extends StatefulWidget {
 }
 
 class _WorkoutListState extends State<WorkoutList> {
-  List<Map<String, dynamic>> _allWorkoutData =
-      []; // Menyimpan semua data asli dari API
-  List<Map<String, dynamic>> _filteredWorkoutData =
-      []; // Data yang akan ditampilkan setelah filter/search
+  List<Map<String, dynamic>> _allWorkoutData = [];
+  List<Map<String, dynamic>> _filteredWorkoutData = [];
   final _storage = const FlutterSecureStorage();
 
   bool _isLoading = true;
@@ -24,9 +22,8 @@ class _WorkoutListState extends State<WorkoutList> {
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String? _selectedDayFilter; // null berarti "Semua Hari"
+  String? _selectedDayFilter;
 
-  // Daftar hari untuk filter, bisa juga diambil dinamis dari data jika perlu
   final List<String> _hariOptions = [
     'Semua Hari',
     'senin',
@@ -247,7 +244,6 @@ class _WorkoutListState extends State<WorkoutList> {
       } else {
         print(
             "Error: Item tidak ditemukan di _allWorkoutData untuk dihapus. ID yang dicari: $workoutId");
-        // Cek apakah item ada di _filteredWorkoutData (seharusnya tidak terjadi jika logika benar)
         final indexInFilteredForDebug =
             _filteredWorkoutData.indexWhere((item) => item['id'] == workoutId);
         print(
@@ -323,7 +319,7 @@ class _WorkoutListState extends State<WorkoutList> {
             backgroundColor: Colors.red),
       );
     } finally {
-      // if (mounted) setState(() { _isLoading = false; }); // Hapus jika tidak menggunakan _isLoading global
+      // if (mounted) setState(() { _isLoading = false; });
     }
   }
 
@@ -523,8 +519,6 @@ class _WorkoutListState extends State<WorkoutList> {
                                     secondaryTextColorOnCard:
                                         secondaryTextColorOnCard,
                                     onEdit: () => _navigateToEditPage(item),
-                                    // Saat menghapus, kita perlu index dari _allWorkoutData, bukan _filteredWorkoutData
-                                    // Jadi, kita akan cari indexnya di _confirmDeleteWorkout
                                     onDelete: () =>
                                         _confirmDeleteWorkout(item, index),
                                   ),
@@ -588,26 +582,23 @@ class WorkoutCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 10.0, vertical: 12.0), // Padding disesuaikan
+        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 6), // Padding chip disesuaikan
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: chipBackgroundColor,
-                borderRadius:
-                    BorderRadius.circular(16.0), // Radius chip disesuaikan
+                borderRadius: BorderRadius.circular(16.0),
               ),
               child: Text(
                 exerciseName.toUpperCase(),
                 style: TextStyle(
                   color: chipTextColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 11, // Font size chip disesuaikan
+                  fontSize: 11,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -624,7 +615,7 @@ class WorkoutCard extends StatelessWidget {
                     text: TextSpan(
                       style: TextStyle(
                         color: primaryTextColorOnCard,
-                        fontSize: 36, // Ukuran font set/reps disesuaikan
+                        fontSize: 36,
                         fontWeight: FontWeight.bold,
                         fontFamily:
                             DefaultTextStyle.of(context).style.fontFamily,
@@ -634,14 +625,14 @@ class WorkoutCard extends StatelessWidget {
                         const TextSpan(
                           text: ' x ',
                           style: TextStyle(
-                            fontSize: 28, // Ukuran font 'x' disesuaikan
+                            fontSize: 28,
                           ),
                         ),
                         TextSpan(text: reps),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 2), // Jarak antar teks dikurangi
+                  const SizedBox(height: 2),
                   Text(
                     (double.tryParse(duration) != null &&
                             duration.isNotEmpty &&
@@ -652,7 +643,7 @@ class WorkoutCard extends StatelessWidget {
                             : duration),
                     style: TextStyle(
                       color: secondaryTextColorOnCard,
-                      fontSize: 12, // Font size durasi disesuaikan
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -688,18 +679,14 @@ class WorkoutCard extends StatelessWidget {
       icon: Icon(icon, size: 16, color: color), // Ukuran ikon disesuaikan
       label: Text(
         label,
-        style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w600), // Font size label disesuaikan
-        overflow: TextOverflow
-            .ellipsis, // Tambahkan overflow jika teks terlalu panjang
+        style:
+            TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        overflow: TextOverflow.ellipsis,
       ),
       onPressed: onPressed,
       style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 6, vertical: 4), // Padding tombol disesuaikan
-          minimumSize: const Size(50, 28), // Ukuran minimum disesuaikan
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          minimumSize: const Size(50, 28),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),

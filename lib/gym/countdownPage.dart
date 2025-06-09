@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:async'; // Untuk Timer
 
 class CountdownPage extends StatefulWidget {
-  final Map<String, dynamic>? navigationArgs; // Untuk menerima argumen
+  final Map<String, dynamic>? navigationArgs;
 
   const CountdownPage({
     super.key,
-    this.navigationArgs, // Jarang digunakan jika rute bernama dipakai dengan benar
+    this.navigationArgs,
   });
 
   @override
@@ -32,7 +32,7 @@ class _CountdownPageState extends State<CountdownPage> {
   int _initialRestDurationSeconds = 0;
 
   String _displayTime = "00:00";
-  String _currentWorkoutName = "Memuat Latihan..."; // Teks awal
+  String _currentWorkoutName = "Memuat Latihan...";
   String _currentSetsReps = "-";
   List<Map<String, dynamic>> _workoutsForDay = [];
   int _currentWorkoutIndex = 0;
@@ -40,8 +40,7 @@ class _CountdownPageState extends State<CountdownPage> {
   bool _isTimerRunning = false;
   String _currentLevel = "Pemula";
   bool _isWorkoutSessionFinished = false;
-  bool _isInitialized =
-      false; // Flag untuk memastikan inisialisasi hanya sekali
+  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -51,7 +50,6 @@ class _CountdownPageState extends State<CountdownPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Ambil argumen dan inisialisasi hanya sekali
     if (!_isInitialized) {
       final Object? args = ModalRoute.of(context)?.settings.arguments;
       print("CountdownPage - Arguments received: $args");
@@ -63,7 +61,6 @@ class _CountdownPageState extends State<CountdownPage> {
 
         if (_workoutsForDay.isNotEmpty) {
           _setupNextWorkout(resetIndex: true);
-          // **MULAI TIMER OTOMATIS SETELAH INISIALISASI PERTAMA**
           if (!_isWorkoutSessionFinished && mounted) {
             _startTimer();
           }
@@ -72,7 +69,7 @@ class _CountdownPageState extends State<CountdownPage> {
           _displayTime = "00:00";
           _currentSetsReps = "-";
           _isWorkoutSessionFinished = true;
-          if (mounted) setState(() {}); // Update UI jika tidak ada workout
+          if (mounted) setState(() {});
         }
       } else if (widget.navigationArgs != null) {
         _currentLevel =
@@ -153,7 +150,7 @@ class _CountdownPageState extends State<CountdownPage> {
     if (_isWorkoutSessionFinished) return;
 
     if (_currentTimerSeconds <= 0) {
-      _handleTimerEnd(); // Jika durasi 0, langsung transisi
+      _handleTimerEnd();
       return;
     }
 

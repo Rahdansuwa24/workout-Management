@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // Import package http
-import 'dart:convert'; // Untuk jsonEncode dan jsonDecode
-
-// Impor file konfigurasi API Anda
-// Pastikan path ini benar: 'package:flutter_uas/api/api.dart' jika itu struktur proyek Anda
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:flutter_uas/api/api.dart';
-
-// Impor flutter_secure_storage
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-// Enum untuk hari latihan
 enum WorkoutDay { senin, selasa, rabu, kamis, jumat, sabtu, minggu }
 
-// Helper untuk mendapatkan nama hari dalam Bahasa Indonesia dari enum
 String getDayNameInIndonesian(WorkoutDay day) {
   switch (day) {
     case WorkoutDay.senin:
-      return 'senin'; // Sesuaikan dengan nilai yang diharapkan backend jika case sensitive
+      return 'senin';
     case WorkoutDay.selasa:
       return 'selasa';
     case WorkoutDay.rabu:
@@ -46,18 +39,13 @@ class _CreateWorkoutPageState extends State<CreateWorkoutPage> {
   final _setController = TextEditingController();
   final _repetitionController = TextEditingController();
   final _timeController = TextEditingController();
-  final _restController =
-      TextEditingController(); // Tetap ada di UI, tapi tidak dikirim
-
+  final _restController = TextEditingController();
   WorkoutDay? _selectedDay;
 
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
   final String _baseApiUrl = ApiConfig.baseUrl;
-  // Pastikan endpoint ini cocok dengan backend Anda router.post('/store', ...)
-  // Jika base URL sudah mengandung /api, dan router backend adalah /workout/store
-  // maka endpoint bisa jadi '/workout/store'
   final String _endpoint = '/workout/store';
 
   final _secureStorage = const FlutterSecureStorage();
@@ -115,8 +103,7 @@ class _CreateWorkoutPageState extends State<CreateWorkoutPage> {
         'Authorization': 'Bearer $token',
       };
 
-      print(
-          "Mengirim data workout: $workoutData ke $fullUrl"); // Log data yang dikirim
+      print("Mengirim data workout: $workoutData ke $fullUrl");
 
       final response = await http.post(
         Uri.parse(fullUrl),
@@ -124,8 +111,7 @@ class _CreateWorkoutPageState extends State<CreateWorkoutPage> {
         body: jsonEncode(workoutData),
       );
 
-      print(
-          "Respons dari server: ${response.statusCode} - ${response.body}"); // Log respons server
+      print("Respons dari server: ${response.statusCode} - ${response.body}");
 
       if (response.statusCode == 201) {
         final responseData = jsonDecode(response.body);

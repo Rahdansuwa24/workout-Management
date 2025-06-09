@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-// Pastikan path ini benar sesuai struktur proyek Anda
 import 'package:flutter_uas/api/api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-// Asumsikan CreateWorkoutPage ada di file terpisah dan diimpor jika diperlukan untuk navigasi
-// import 'create_workout_page.dart'; // Jika menggunakan Navigator.push(MaterialPageRoute(...))
 
 const Color cardBackgroundColor = Color(0xFF2C2C2C);
 const Color chipBackgroundColor = Color(0xFFE0C083);
@@ -73,7 +69,6 @@ class DashboardWorkoutCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                // Cek jika durasi adalah angka, tambahkan "Menit", jika tidak tampilkan apa adanya
                 (double.tryParse(duration) != null && duration.isNotEmpty)
                     ? '$duration Menit'
                     : (duration.isEmpty ? 'N/A' : duration),
@@ -249,7 +244,6 @@ class _DashboardPageState extends State<DashboardPage> {
       },
     );
 
-    // Fetch user workouts
     await _fetchData(
       endpoint: '/',
       token: token,
@@ -329,7 +323,6 @@ class _DashboardPageState extends State<DashboardPage> {
               (responseData['data'] as List).map((item) {
             if (item is Map) {
               return {
-                // **Tambahkan 'id' untuk setiap item workout/rekomendasi**
                 'id': item['latihan_id']?.toString() ??
                     item['id']?.toString() ??
                     UniqueKey().toString(),
@@ -337,7 +330,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 'sets': item['set_latihan']?.toString() ?? '0',
                 'reps': item['repetisi_latihan']?.toString() ?? '0',
                 'duration': item['waktu']?.toString() ?? 'N/A',
-                // Sertakan field lain jika ada dan diperlukan
                 'bagian_yang_dilatih':
                     item['bagian_yang_dilatih']?.toString() ?? '',
                 'hari_latihan': item['hari_latihan']?.toString() ?? '',
@@ -386,9 +378,7 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final response = await http.get(
         Uri.parse(logoutUrl),
-        headers: {
-          // 'Authorization': 'Bearer ${await _storage.read(key: 'authToken')}',
-        },
+        headers: {},
       );
       if (!mounted) {
         print("Logout: Widget tidak mounted setelah panggilan API logout.");
@@ -480,7 +470,6 @@ class _DashboardPageState extends State<DashboardPage> {
                               style: TextStyle(color: Colors.white70)),
                         )
                       : _workoutCarousel(
-                          // Panggil _workoutCarousel untuk rekomendasi
                           _recommendationWorkouts,
                           onItemTap: (itemData) {
                             print("Recommendation card tapped: $itemData");
@@ -535,8 +524,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           child: Text('Anda belum memiliki daftar workout.',
                               style: TextStyle(color: Colors.white70)),
                         )
-                      : _workoutCarousel(
-                          _userWorkouts), // Panggil _workoutCarousel untuk user workouts (tanpa onTap spesifik ini)
+                      : _workoutCarousel(_userWorkouts),
               const SizedBox(height: 20),
             ],
           ),
@@ -697,7 +685,6 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _workoutCarousel(List<Map<String, String>> data,
       {Function(Map<String, String> itemData)? onItemTap}) {
     if (data.isEmpty) {
-      // Tidak menampilkan apa-apa jika data kosong, pesan akan ditangani oleh build utama
       return const SizedBox.shrink();
     }
     return SizedBox(

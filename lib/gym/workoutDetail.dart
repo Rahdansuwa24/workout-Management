@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_uas/api/api.dart'; // Pastikan path ini benar
+import 'package:flutter_uas/api/api.dart';
 
 class WorkoutDetail extends StatefulWidget {
-  // Data awal yang mungkin dikirim dari halaman list,
-  // terutama untuk mendapatkan 'id' (latihan_id)
   final Map<String, dynamic>? initialWorkoutData;
 
   const WorkoutDetail({
@@ -32,10 +30,8 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
   static const Color cardBackgroundColor = Color(0xFF2C2C2C);
   static const Color chipAndButtonBackgroundColor = Color(0xFFE0C083);
   static const Color chipAndButtonTextColor = Color(0xFF1F1F1F);
-  static const Color detailLabelTextColor =
-      Color(0xFFE0E0E0); // Warna lebih terang untuk label
-  static const Color detailValueTextColor =
-      Colors.white; // Warna putih untuk nilai agar kontras
+  static const Color detailLabelTextColor = Color(0xFFE0E0E0);
+  static const Color detailValueTextColor = Colors.white;
   static const Color dotColor = chipAndButtonBackgroundColor;
 
   bool _isInitialized = false;
@@ -43,7 +39,6 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
   @override
   void initState() {
     super.initState();
-    // Jika data awal ada dari konstruktor (jarang jika pakai argumen rute)
     if (widget.initialWorkoutData != null) {
       _latihanId = widget.initialWorkoutData!['id']?.toString();
       print(
@@ -63,14 +58,12 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
       if (arguments is Map<String, dynamic>) {
         dataFromArgs = arguments;
       } else if (widget.initialWorkoutData != null) {
-        // Fallback jika argumen tidak ada/tidak valid, gunakan data dari konstruktor
         dataFromArgs = widget.initialWorkoutData;
         print(
             "WorkoutDetail didChangeDependencies - Menggunakan initialWorkoutData karena argumen tidak valid atau null.");
       }
 
       if (dataFromArgs != null) {
-        // 'id' yang dikirim dari WorkoutList adalah 'latihan_id'
         final idFromArgs = dataFromArgs['id']?.toString();
         print(
             "WorkoutDetail didChangeDependencies - idFromArgs (dari argumen atau initialData): $idFromArgs");
@@ -83,7 +76,6 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
               "WorkoutDetail didChangeDependencies - _latihanId di-set menjadi: $_latihanId. Memulai fetch details...");
           _fetchWorkoutDetails(_latihanId!);
         } else {
-          // Jika _latihanId dari initState sudah ada (dari widget.initialWorkoutData) dan valid, gunakan itu
           if (_latihanId != null &&
               _latihanId!.isNotEmpty &&
               !_latihanId!.startsWith('UniqueKey')) {
@@ -129,7 +121,6 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
             "Token tidak ditemukan. Tidak dapat memuat detail workout.");
       }
 
-      // Menggunakan endpoint GET /api/workout/edit/:id (sesuai info Anda)
       final String fetchUrl = '${ApiConfig.baseUrl}/workout/edit/$id';
       print("WorkoutDetail - Fetching details from: $fetchUrl");
 
@@ -159,7 +150,6 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
             });
           } else if (responseData['data'] is List &&
               (responseData['data'] as List).isNotEmpty) {
-            // Jika backend mengembalikan list dengan satu item untuk get by ID
             print(
                 "WorkoutDetail - Peringatan: Backend GET /edit/:id mengembalikan List, mengambil item pertama.");
             setState(() {
@@ -267,16 +257,12 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
     final String exerciseName =
         details['nama_latihan']?.toString() ?? 'Nama Latihan Tidak Ada';
 
-    // Siapkan data untuk ditampilkan di detail row
-    // Sesuaikan key ini dengan field yang ada di `details` dari backend
     Map<String, String> displayDetails = {
       'Bagian Dilatih': details['bagian_yang_dilatih']?.toString() ?? '-',
       'Set': details['set_latihan']?.toString() ?? '0',
       'Repetisi': details['repetisi_latihan']?.toString() ?? '0',
       'Waktu': "${details['waktu']?.toString() ?? '-'} menit",
       'Hari': details['hari_latihan']?.toString() ?? '-',
-      // 'Rest' tidak ada di output Postman Anda, jadi saya akan hilangkan atau beri nilai default
-      // 'Rest': details['rest_time']?.toString() ?? 'N/A',
     };
 
     return Container(
@@ -324,8 +310,7 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
 
   Widget _buildDetailsSection(Map<String, String> detailsToDisplay) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 15.0), // Padding disesuaikan
+      padding: const EdgeInsets.symmetric(horizontal: 15.0),
       child: Column(
         children: detailsToDisplay.entries
             .map((entry) => _buildDetailRow(entry.key, entry.value))
@@ -336,8 +321,7 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-          vertical: 12.0), // Padding vertikal ditambah
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment:
@@ -373,7 +357,7 @@ class _WorkoutDetailState extends State<WorkoutDetail> {
               style: const TextStyle(
                 color: detailValueTextColor,
                 fontSize: 16,
-                fontWeight: FontWeight.w600, // Value dibuat lebih bold
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

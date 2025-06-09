@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_uas/api/api.dart'; // Pastikan path ini benar
+import 'package:flutter_uas/api/api.dart'; 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // Enum untuk level kesulitan
@@ -21,7 +21,7 @@ class _SchedulePageState extends State<SchedulePage> {
 
   final _storage = const FlutterSecureStorage();
 
-  // Skema Warna
+  
   static const Color screenBackgroundColor = Color(0xFF121212);
   static const Color appBarTextColor = Colors.white;
   static const Color bannerTextColor = Colors.white;
@@ -35,8 +35,7 @@ class _SchedulePageState extends State<SchedulePage> {
   static const Color popupTitleColor = Colors.white;
   static const Color popupContentColor = Color(0xFFE0E0E0);
   static const Color popupDetailLabelColor = Color(0xFFB0B0B0);
-  static const Color popupOptionTextColor =
-      Color(0xFFE0C083); // Warna untuk teks opsi
+  static const Color popupOptionTextColor = Color(0xFFE0C083); 
 
   @override
   void initState() {
@@ -317,7 +316,7 @@ class _SchedulePageState extends State<SchedulePage> {
                 height: 1.3),
           ),
           content: Column(
-            mainAxisSize: MainAxisSize.min, // Agar dialog tidak terlalu besar
+            mainAxisSize: MainAxisSize.min, 
             children: WorkoutLevel.values.map((level) {
               String levelName = "";
               int restTime = 0;
@@ -347,18 +346,16 @@ class _SchedulePageState extends State<SchedulePage> {
                         borderRadius: BorderRadius.circular(12.0)),
                   ),
                   onPressed: () {
-                    Navigator.of(context).pop(); // Tutup dialog opsi
+                    Navigator.of(context).pop(); 
                     print(
                         'Level dipilih: $levelName, Waktu Istirahat: $restTime detik');
                     Navigator.pushNamed(
-                        context, '/countdown', // Nama rute untuk CountdownPage
+                        context, '/countdown', 
                         arguments: {
                           'levelName': levelName,
                           'restTime': restTime,
                           'dayName': dayFullName,
                           'workoutsForDay': detailedWorkouts,
-                          // Anda mungkin ingin mengirim hanya workout pertama atau semua workout
-                          // Tergantung bagaimana CountdownPage akan mengelolanya
                         });
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text(

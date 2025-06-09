@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter_uas/api/api.dart'; // Pastikan path ini benar
+import 'package:flutter_uas/api/api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // Enum untuk hari latihan (sama seperti di CreateWorkoutPage)
@@ -32,7 +32,7 @@ WorkoutDay? workoutDayFromString(String? dayString) {
     return WorkoutDay.values
         .firstWhere((e) => e.name.toLowerCase() == dayString.toLowerCase());
   } catch (e) {
-    return null; // Jika tidak ditemukan, kembalikan null
+    return null;
   }
 }
 
@@ -100,7 +100,6 @@ class _UpdateWorkoutPageState extends State<UpdateWorkoutPage> {
       }
 
       if (dataFromArgs != null) {
-        // 'id' yang dikirim dari WorkoutList adalah latihan_id
         final idFromArgsOrInitial = dataFromArgs['id']?.toString();
         print(
             "UpdateWorkoutPage didChangeDependencies - idFromArgsOrInitial (dari argumen atau initialData): $idFromArgsOrInitial");
@@ -172,7 +171,6 @@ class _UpdateWorkoutPageState extends State<UpdateWorkoutPage> {
 
       print(
           "UpdateWorkoutPage - Respons fetch details: Status: ${response.statusCode}");
-      // print("UpdateWorkoutPage - Respons fetch details Body: ${response.body}"); // Hati-hati jika body besar
 
       if (!mounted) return;
 
@@ -219,15 +217,13 @@ class _UpdateWorkoutPageState extends State<UpdateWorkoutPage> {
   void _initializeControllers(Map<String, dynamic> data) {
     print(
         "UpdateWorkoutPage - Menginisialisasi controllers dengan data: $data");
-    // Pastikan mengambil 'latihan_id' jika itu nama field dari backend untuk detail
     _latihanId = data['latihan_id']?.toString() ?? data['id']?.toString();
 
     _nameController.text = data['nama_latihan']?.toString() ?? '';
     _bagianController.text = data['bagian_yang_dilatih']?.toString() ?? '';
     _setController.text = data['set_latihan']?.toString() ?? '';
     _repetitionController.text = data['repetisi_latihan']?.toString() ?? '';
-    _timeController.text =
-        data['waktu']?.toString() ?? ''; // Ini adalah 'waktu' dari backend
+    _timeController.text = data['waktu']?.toString() ?? '';
     _selectedDay = workoutDayFromString(data['hari_latihan']?.toString());
 
     if (_latihanId == null) {
@@ -356,8 +352,7 @@ class _UpdateWorkoutPageState extends State<UpdateWorkoutPage> {
               style: TextStyle(color: Colors.white)),
           backgroundColor: const Color(0xFF1A1A1A),
           centerTitle: true,
-          automaticallyImplyLeading:
-              false, // Sembunyikan tombol back default saat loading
+          automaticallyImplyLeading: false,
         ),
         body: const Center(
             child: CircularProgressIndicator(color: Color(0xFFE0C083))),
