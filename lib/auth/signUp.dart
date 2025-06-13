@@ -70,6 +70,9 @@ class _RegisterPageState extends State<RegisterPage> {
             Navigator.pop(context);
           }
         });
+      } else if (response.statusCode == 400) {
+        _showSnackBar(responseData['message'] ?? 'Input tidak valid.',
+            isError: true);
       } else {
         _showSnackBar(responseData['message'] ?? 'Terjadi kesalahan.',
             isError: true);

@@ -187,7 +187,6 @@ class _CreateWorkoutPageState extends State<CreateWorkoutPage> {
       // **PERBAIKAN: Tambahkan WillPopScope**
       onWillPop: () async {
         print("CreateWorkoutPage: Tombol kembali sistem ditekan atau swipe.");
-        // Kirim 'false' untuk menandakan tidak ada perubahan data eksplisit yang sukses
         Navigator.pop(context, false);
         return true; // Izinkan operasi pop
       },
@@ -201,8 +200,7 @@ class _CreateWorkoutPageState extends State<CreateWorkoutPage> {
             onPressed: () {
               print("CreateWorkoutPage: Tombol back di AppBar ditekan.");
               if (Navigator.canPop(context)) {
-                Navigator.pop(
-                    context, false); // **PERBAIKAN: Kirim false sebagai hasil**
+                Navigator.pop(context, false);
               }
             },
           ),
